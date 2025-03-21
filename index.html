@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Card Game</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .game-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            max-width: 600px;
+            margin: 20px auto;
+        }
+
+        .card {
+            width: 100px;
+            height: 100px;
+            position: relative;
+            cursor: pointer;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-front,
+        .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .card-back {
+            background: var(--secondary-color);
+            transform: rotateY(180deg);
+            font-size: 2em;
+            color: white;
+        }
+
+        .card-front {
+            background: white;
+            transform: rotateY(0deg);
+        }
+
+        .moves-counter {
+            font-size: 1.5em;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        .razorpay-btn {
+            display: none;
+            padding: 10px 20px;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .game-container {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .card {
+                width: 80px;
+                height: 80px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="moves-counter">Moves: <span id="moves">0</span></div>
+    <div class="game-container" id="gameContainer"></div>
+    <button class="razorpay-btn" id="rzpButton">Complete Payment to Play Again</button>
+
+    <script>
+        const cards = ['🎮', '👾', '🎲', '🕹️', '🎯', '🎨', '🧩', '🎪'];
+        const gameContainer = document.getElementById('gameContainer');
+        const movesDisplay = document.getElementById('moves');
+        const rzpButton = document.getElementById('rzpButton');
+        let flippedCards = [];
+        let moves = 0;
+        let matchedPairs = 0;
+
+        // Create duplicated and shuffled cards
+        const gameCards = [...cards, ...cards]
+            .sort(() => Math.random() - 0.5)
+            .map((symbol, index) => ({ id: index, symbol }));
+
+        // Create card elements
+        gameCards.forEach(card => {
+            const cardElement = document.createElement('div');
+            cardElement.className = 'card';
+            cardElement.innerHTML = `
+                <div class="card-front"></div>
+                <div class="card-back">${card.symbol}</div>
+            `;
+            cardElement.dataset.symbol = card.symbol;
+            cardElement.addEventListener('click', () => flipCard(cardElement));
+            gameContainer.appendChild(cardElement);
+        });
+
+        function flipCard(card) {
+            if (flippedCards.length < 2 && !card.classList.contains('flipped')) {
+                card.classList.add('flipped');
+                flippedCards.push(card);
+
+                if (flippedCards.length === 2) {
+                    moves++;
+                    movesDisplay.textContent = moves;
+                    checkMatch();
+                }
+            }
+        }
+
+        function checkMatch() {
+            const [card1, card2] = flippedCards;
+            const match = card1.dataset.symbol === card2.dataset.symbol;
+
+            if (match) {
+                matchedPairs++;
+                flippedCards = [];
+                if (matchedPairs === cards.length) {
+                    setTimeout(() => {
+                        alert('Congratulations! You won!');
+                        rzpButton.style.display = 'block';
+                    }, 300);
+                }
+            } else {
+                setTimeout(() => {
+                    card1.classList.remove('flipped');
+                    card2.classList.remove('flipped');
+                    flippedCards = [];
+                }, 1000);
+            }
+        }
+
+        // Razorpay Integration
+        rzpButton.onclick = function(e) {
+            const options = {
+                key: 'rzp_test_tdh1Y1jNQj303H', // Replace with your test key
+                amount: 1, // 100 paise = ₹1
+                currency: 'INR',
+                name: 'Memory Game',
+                description: 'Premium Game Access',
+                handler: function(response) {
+                    alert('Payment successful! Restarting game...');
+                    resetGame();
+                },
+                theme: {
+                    color: '#3498db'
+                }
+            };
+            const rzp = new Razorpay(options);
+            rzp.open();
+        }
+
+        function resetGame() {
+            gameContainer.innerHTML = '';
+            flippedCards = [];
+            moves = 0;
+            matchedPairs = 0;
+            movesDisplay.textContent = '0';
+            rzpButton.style.display = 'none';
+            
+            gameCards.sort(() => Math.random() - 0.5)
+                .forEach(card => {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'card';
+                    cardElement.innerHTML = `
+                        <div class="card-front"></div>
+                        <div class="card-back">${card.symbol}</div>
+                    `;
+                    cardElement.dataset.symbol = card.symbol;
+                    cardElement.addEventListener('click', () => flipCard(cardElement));
+                    gameContainer.appendChild(cardElement);
+                });
+        }
+    </script>
+</body>
+</html>
